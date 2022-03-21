@@ -88,8 +88,7 @@ class Game(bot_declarative_base):
         if embed_type == "GAME_FOUND":
             embed = Embed(
                 title="📢 Game found 📢",
-                description=f"Blue side expected winrate is {self.blue_expected_winrate * 100:.1f}%\n"
-                "If you are ready to play, press ✅\n"
+                description=f"If you are ready to play, press ✅\n"
                 "If you cannot play, press ❌\n"
                 "The queue will timeout after a few minutes and AFK players will be automatically dropped from queue",
             )

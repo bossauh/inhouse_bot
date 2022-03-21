@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Tuple, Dict, List, Optional
 import datetime
+import random
 
 from discord import Embed
 from tabulate import tabulate
@@ -14,6 +15,9 @@ from inhouse_bot.database_orm.tables.player import Player
 
 from inhouse_bot.common_utils.fields import roles_list, side_enum
 from inhouse_bot.common_utils.emoji_and_thumbnails import get_role_emoji, get_champion_emoji
+
+from inhouse_bot.inhouse_logger import inhouse_logger
+
 
 
 class Game(bot_declarative_base):
@@ -77,9 +81,10 @@ class Game(bot_declarative_base):
         return tabulate(
             {"BLUE": [p.short_name for p in self.teams.BLUE], "RED": [p.short_name for p in self.teams.BLUE]},
             headers="keys",
-        )
-
+        ) 
+        
     def get_embed(self, embed_type: str, validated_players: Optional[List[int]] = None, bot=None) -> Embed:
+            
         if embed_type == "GAME_FOUND":
             embed = Embed(
                 title="📢 Game found 📢",
@@ -88,6 +93,35 @@ class Game(bot_declarative_base):
                 "If you cannot play, press ❌\n"
                 "The queue will timeout after a few minutes and AFK players will be automatically dropped from queue",
             )
+            
+            players = getattr(self.teams, "RED") + getattr(self.teams, "BLUE")
+            random_dict_players = {}
+            for side in ("BLUE", "RED"):
+                for index, value in enumerate(getattr(self.teams, side)):
+                    random_dict_players[value.player_id] = index
+
+            # Uso de seed el expected winrate para que sea constante xD
+            random.seed(int(self.blue_expected_winrate * 100))
+            random.shuffle(players)
+            random.seed()
+
+            embed.add_field(
+                name="PLAYERS",
+                value="\n".join(  # This adds one side as an inline field
+                    [
+                        (f"{get_role_emoji(roles_list[random_dict_players[p.player_id]])}"  # We start with the role emoji
+                        + (  # Then add loading or ✅ if we are looking at a validation embed
+                            ""
+                            if embed_type != "GAME_FOUND"
+                            else f" {get_champion_emoji('loading', bot)}"
+                            if p.player_id not in validated_players
+                            else " ✅"
+                        )
+                        + f" {p.short_name}")
+                        for idx, p in enumerate(players)
+                    ]
+                )
+            )
         elif embed_type == "GAME_ACCEPTED":
             embed = Embed(
                 title="📢 Game accepted 📢",
@@ -95,12 +129,9 @@ class Game(bot_declarative_base):
                 f"Once the game has been played, one of the winners can score it with `!won`\n"
                 f"If you wish to cancel the game, use `!cancel`",
             )
-        else:
-            raise ValueError
-
-        # Not the prettiest piece of code but it works well
-        for side in ("BLUE", "RED"):
-            embed.add_field(
+            
+            for side in ("BLUE", "RED"):
+                embed.add_field(
                 name=side,
                 value="\n".join(  # This adds one side as an inline field
                     [
@@ -117,6 +148,8 @@ class Game(bot_declarative_base):
                     ]
                 ),
             )
+        else:
+            raise ValueError
 
         return embed
 

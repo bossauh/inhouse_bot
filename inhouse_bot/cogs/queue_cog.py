@@ -53,7 +53,7 @@ class QueueCog(commands.Cog, name="Queue"):
         if not game:
             return
 
-        elif game and game.matchmaking_score < 0.3:
+        elif game and game.matchmaking_score < 0.5:
             embed = game.get_embed(embed_type="GAME_FOUND", validated_players=[], bot=self.bot)
 
             # We notify the players and send the message
@@ -143,7 +143,7 @@ class QueueCog(commands.Cog, name="Queue"):
                 # We restart the matchmaking logic
                 await self.run_matchmaking_logic(ctx)
 
-        elif game and game.matchmaking_score >= 0.3:
+        elif game and game.matchmaking_score >= 0.5:
             # One side has over 80% predicted winrate, we do not start anything
             await ctx.send(
                 f"The best match found had a side with a {(.5 + game.matchmaking_score)*100:.1f}%"

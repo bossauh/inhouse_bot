@@ -33,7 +33,7 @@ class RoleConverter(commands.Converter):
         """
         matched_string, ratio = rapidfuzz.process.extractOne(argument, full_roles_dict.keys())
 
-        if ratio < 85:
+        if ratio < 92:
             await ctx.send(f"The role was not understood")
             raise ConversionError
 

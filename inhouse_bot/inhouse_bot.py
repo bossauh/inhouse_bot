@@ -1,10 +1,13 @@
 import logging
 import os
 import threading
+import time
+import psycopg2
+import psycopg2.extras
 from datetime import datetime
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 
 from discord.ext.commands import NoPrivateMessage
@@ -56,9 +59,55 @@ class InhouseBot(commands.Bot):
             from tests.test_cog import TestCog
 
             self.add_cog(TestCog(self))
+        
+        # Connect to the database using psycopg2
+        import urllib.parse
+        url = os.environ["INHOUSE_BOT_CONNECTION_STRING"]
+        parsed = urllib.parse.urlparse(url)
+        username = parsed.username
+        password = parsed.password
+        database = parsed.path[1:]
+
+        self.psycop_connection = psycopg2.connect(
+            user = username,
+            password = password,
+            dbname = database
+        )
+
+        cur = self.psycop_connection.cursor()
+        cur.execute(f"select * from information_schema.tables where table_name='muted_players';")
+        if not bool(cur.rowcount):
+            # TODO: muted_players table does not exist, therefore create it
+            cur.execute("""
+create table muted_players (
+    id bigint,
+    mute_time bigint
+)
+""")
+            self.psycop_connection.commit()
+        cur.close()
+
+        self._background_task.start()
 
     def run(self, *args, **kwargs):
         super().run(os.environ["INHOUSE_BOT_TOKEN"], *args, **kwargs)
+    
+    @tasks.loop(seconds=1.0)
+    async def _background_task(self) -> None:
+        cur = self.psycop_connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("select * from muted_players")
+        players = cur.fetchall()
+        
+        for player in players:
+            if (int(time.time()) - player["mute_time"]) >= int(os.environ.get("INHOUSE_BOT_PENALTY", str(900))):
+                for guild in self.guilds:
+                    member = await guild.fetch_member(player["id"])
+                    await member.edit(mute=False)
+
+                    cur.execute(f"delete from muted_players where id={player['id']}")
+                    self.psycop_connection.commit()
+        
+        cur.close()      
 
     async def command_logging(self, ctx: discord.ext.commands.Context):
         """

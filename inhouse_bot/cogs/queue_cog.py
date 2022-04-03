@@ -191,6 +191,9 @@ class QueueCog(commands.Cog, name="Queue"):
             if datetime.now() - cancel_timestamp < timedelta(hours=1):
                 jump_ahead = True
 
+        if not common_utils.has_discord_role(ctx.author, role):
+            return await ctx.send(f"You need to have that role in your discord in order to queue up.")
+
         if not duo:
 
             # Simply queuing the player
@@ -208,6 +211,9 @@ class QueueCog(commands.Cog, name="Queue"):
             if not duo_role:
                 await ctx.send("You need to input a role for your duo partner")
                 return
+            
+            if not common_utils.has_discord_role(duo, duo_role):
+                return await ctx.send("Your duo partner need to have that role in their discord in order to queue up.")
 
             duo_validation_message = await ctx.send(
                 f"<@{ctx.author.id}> {get_role_emoji(role)} wants to duo with <@{duo.id}> {get_role_emoji(duo_role)}\n"
@@ -387,6 +393,17 @@ class QueueCog(commands.Cog, name="Queue"):
 
                 await remove_voice_channels(ctx, game_id)
                 session.delete(game)
+
+                try:
+                    # Mute the user
+                    await ctx.author.edit(mute=True)
+                    cur = self.bot.psycop_connection.cursor()
+                    cur.execute(f"insert into muted_players values ({ctx.author.id}, {int(time.time())})")
+                    self.bot.psycop_connection.commit()
+                    cur.close()
+                except Exception as e:
+                    traceback.print_exc()
+                    await ctx.send(f"An error has occurred while trying to mute the user. {e}")
 
                 queue_channel_handler.mark_queue_related_message(
                     await ctx.send(f"Game {game.id} was cancelled")

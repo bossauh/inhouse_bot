@@ -15,6 +15,7 @@ foreignkey_cascade_options = {"onupdate": "CASCADE", "ondelete": "CASCADE"}
 full_roles_dict = {
     "top": "TOP",
     "jgl": "JGL",
+    "jg": "JGL",
     "jungle": "JGL",
     "jungler": "JGL",
     "mid": "MID",

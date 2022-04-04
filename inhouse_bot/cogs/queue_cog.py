@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 import discord
 import time
 import traceback
+import os
+import aiohttp
 from discord.ext import commands
 
 from inhouse_bot import game_queue
@@ -377,7 +379,7 @@ class QueueCog(commands.Cog, name="Queue"):
                 bot=self.bot,
                 message=cancel_validation_message,
                 validating_players_ids=game.player_ids_list,
-                validation_threshold=6,
+                validation_threshold=1, # FIXME
             )
 
             self.games_getting_scored_ids.remove(game.id)
@@ -394,15 +396,13 @@ class QueueCog(commands.Cog, name="Queue"):
                 session.delete(game)
 
                 try:
-                    # Mute the user
-                    await ctx.author.edit(mute=True)
-                    cur = self.bot.psycop_connection.cursor()
-                    cur.execute(f"insert into muted_players values ({ctx.author.id}, {int(time.time())})")
-                    self.bot.psycop_connection.commit()
-                    cur.close()
+                    # Timeout the user
+                    await common_utils.timeout_user(ctx.author.id, ctx.guild.id, int(os.environ.get("INHOUSE_BOT_PENALTY")))
+                except aiohttp.ClientResponseError:
+                    await ctx.send("Cannot timeout user. User might be an admin")
                 except Exception as e:
                     traceback.print_exc()
-                    await ctx.send(f"An error has occurred while trying to mute the user. {e}")
+                    await ctx.send(f"An error has occurred while trying to timeout the user. {e}")
 
                 queue_channel_handler.mark_queue_related_message(
                     await ctx.send(f"Game {game.id} was cancelled")

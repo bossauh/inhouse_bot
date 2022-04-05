@@ -55,7 +55,7 @@ class QueueCog(commands.Cog, name="Queue"):
         if not game:
             return
 
-        elif game and game.matchmaking_score < 0.2:
+        elif game and game.matchmaking_score < 0.5:
             embed = game.get_embed(embed_type="GAME_FOUND", validated_players=[], bot=self.bot)
 
             # We notify the players and send the message
@@ -145,8 +145,8 @@ class QueueCog(commands.Cog, name="Queue"):
                 # We restart the matchmaking logic
                 await self.run_matchmaking_logic(ctx)
 
-        elif game and game.matchmaking_score >= 0.2:
-            # One side has over 70% predicted winrate, we do not start anything
+        elif game and game.matchmaking_score >= 0.5:
+            # One side has over 80% predicted winrate, we do not start anything
             await ctx.send(
                 f"The best match found had a side with a {(.5 + game.matchmaking_score)*100:.1f}%"
                 f" predicted winrate and was not started"
@@ -287,7 +287,7 @@ class QueueCog(commands.Cog, name="Queue"):
             game, participant = get_last_game(
                 player_id=ctx.author.id, server_id=ctx.guild.id, session=session
             )
-
+            
             if not game:
                 await ctx.send("You have not played a game on this server yet")
                 return
@@ -305,6 +305,8 @@ class QueueCog(commands.Cog, name="Queue"):
 
             else:
                 self.games_getting_scored_ids.add(game.id)
+                
+            game_id = game.id
 
             win_validation_message = await ctx.send(
                 f"{game.players_ping}"
@@ -337,7 +339,7 @@ class QueueCog(commands.Cog, name="Queue"):
         await ranking_channel_handler.update_ranking_channels(self.bot, ctx.guild.id)
 
         # If we're here, the game has been scored and the voice channels for this game can be removed
-        await remove_voice_channels(ctx, game)
+        await remove_voice_channels(ctx, game_id)
 
     @commands.command(aliases=["cancel_game"])
     @queue_channel_only()
@@ -369,6 +371,8 @@ class QueueCog(commands.Cog, name="Queue"):
             else:
                 self.games_getting_scored_ids.add(game.id)
 
+            game_id = game.id
+            
             cancel_validation_message = await ctx.send(
                 f"{game.players_ping}"
                 f"{ctx.author.display_name} wants to cancel game {game.id}\n"
@@ -392,7 +396,7 @@ class QueueCog(commands.Cog, name="Queue"):
                 for participant in game.participants.values():
                     self.players_whose_last_game_got_cancelled[participant.player_id] = datetime.now()
 
-                await remove_voice_channels(ctx, game)
+                await remove_voice_channels(ctx, game_id)
                 session.delete(game)
 
                 try:

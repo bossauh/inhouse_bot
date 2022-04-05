@@ -86,11 +86,13 @@ class AdminCog(commands.Cog, name="Admin"):
                 await ctx.send("The game has already been scored and cannot be canceled anymore")
                 return
 
+            game_id = game.id
+
             session.delete(game)
 
         await ctx.send(f"{member.display_name}’s ongoing game was cancelled and deleted from the database")
         await queue_channel_handler.update_queue_channels(bot=self.bot, server_id=ctx.guild.id)
-        await remove_voice_channels(ctx, game)
+        await remove_voice_channels(ctx, game_id)
 
     @admin.command()
     @guild_only()
